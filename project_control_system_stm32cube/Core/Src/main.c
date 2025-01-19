@@ -29,6 +29,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "BMPXX80.h"
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,13 +45,15 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define COUNTOF(_BUFFER_) (sizeof(_BUFFER_) / sizeof(*(_BUFFER_)))
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 float temperature_from_bmp280;
+int int_temp_to_send;
+char data[16];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -104,7 +108,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   BMP280_Init(&hspi1, BMP280_TEMPERATURE_16BIT, BMP280_STANDARD, BMP280_FORCEDMODE);
   HAL_TIM_PWM_Start (&htim1, TIM_CHANNEL_1);
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 900);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -114,8 +118,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  temperature_from_bmp280 = BMP280_ReadTemperature();
-	  HAL_Delay(1000);
+	temperature_from_bmp280 = BMP280_ReadTemperature();
+	int_temp_to_send = (int)(temperature_from_bmp280*1000);
+	sprintf(data, "%d,", int_temp_to_send);
+	HAL_UART_Transmit(&huart3, (uint8_t *)data, strlen(data), 50);
+
+	HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
