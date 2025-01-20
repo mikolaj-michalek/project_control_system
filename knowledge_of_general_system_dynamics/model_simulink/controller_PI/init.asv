@@ -1,0 +1,22 @@
+clc, close all hidden, clear all;
+
+% parametry obiektu
+K = 8.6;
+T = 325;
+T_o = 5;
+m_offset = 24.76;
+
+% wartosc zadana
+y_ref = 28;
+
+% regulator (IMC)
+Tc = T_o;
+kp_imc = T/(K*(Tc+T_o))
+Ti_imc = T
+ki_imc = kp_imc/Ti_imc
+
+
+% regulator (SIMC)
+Tm = min(T, 4*(T_+Tc));
+kp_simc = T_hat/(k*(Tc+T0_hat))
+Ti_simc = Tm
