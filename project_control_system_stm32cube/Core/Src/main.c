@@ -68,33 +68,33 @@ typedef	struct{
 
 /* USER CODE BEGIN PV */
 float temperature_from_bmp280;
-float temperature_from_user = 30;
+float temperature_from_user;
 int int_temp_to_send;
 char data[16];
-PidStruct Pid1 = {1.0,0,0,3.78,0.012,0,0,0,0,0,0,0,0,0};
-float pwm_duty_float;
-uint16_t pwm_duty_int;
+PidStruct Pid1 = {1.0,0,0,1.2,0.002,0,0,0,0,0,0,0,0,0};
+int pwm_duty;
+
+uint8_t received_from_user;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-uint16_t Saturacja(float temp1)
+void Saturacja(void)
 {
-	uint16_t temp2;
-	if (temp1 > 999.0)
+	if (Pid1.upid > 1.0)
 	{
-		temp2 = 999;
+		Pid1.usat = 1.0;
 	}
-	else if (temp1 < 0.0)
+	else if (Pid1.upid < 0.0)
 	{
-		temp2 = 0;
+		Pid1.usat = 0.0;
 	}
 	else
 	{
-	temp2 = (uint16_t)(temp1);
+	Pid1.usat = Pid1.upid;
 	}
-	return temp2;
 }
 
 void PIDcalc(float temp_measured, float reference)
@@ -107,10 +107,10 @@ void PIDcalc(float temp_measured, float reference)
 	// integral part
 	Pid1.integral = Pid1.prev_integral + (Pid1.e + Pid1.prev_error);
 	Pid1.prev_integral = Pid1.integral;
-	Pid1.ui = Pid1.Ki * Pid1.integral * (Pid1.dt/2.0);
+	Pid1.ui = Pid1.Ki * Pid1.integral  * (Pid1.dt/2.0);
 
 	// derivative part
-	Pid1.derivative = (Pid1.e - Pid1.prev_error)/Pid1.dt;
+	Pid1.derivative = (Pid1.e - Pid1.prev_error) / Pid1.dt;
 	Pid1.prev_error = Pid1.e;
 	Pid1.ud = Pid1.Kd * Pid1.derivative;
 
@@ -121,7 +121,19 @@ void PIDcalc(float temp_measured, float reference)
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int is_int(char *str) {
+    int i = 0, len = strlen(str);
+    if (str[i] == '+' || str[i] == '-') i++;
+    if (i == len) return 0;
+    while (i < len) {
+        if (isdigit(str[i])) {
+            i++;
+        } else {
+            return 0;
+        }
+    }
+    return 1;
+}
 /* USER CODE END 0 */
 
 /**
@@ -165,6 +177,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   BMP280_Init(&hspi1, BMP280_TEMPERATURE_16BIT, BMP280_STANDARD, BMP280_FORCEDMODE);
   HAL_TIM_PWM_Start (&htim1, TIM_CHANNEL_1);
+  HAL_UART_Receive_IT(&huart3, &received_from_user, 3);
 
   /* USER CODE END 2 */
 
@@ -175,16 +188,33 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	// ODCZYT DANYCH WEJSCIOWYCH
 	temperature_from_bmp280 = BMP280_ReadTemperature();
+
+	// SEKWENCJA PROGRAMU
+
+		// REGULACJA
+	PIDcalc(temperature_from_bmp280, temperature_from_user);
+	Saturacja();
+	pwm_duty = (int)(Pid1.usat * (999.0));
+
+
+
+
+	// WYSLANIE DANYCH WYJSCIOWYCH
 	// int_temp_to_send = (int)(temperature_from_bmp280*1000);
 	// sprintf(data, "%d,", int_temp_to_send);
 	// HAL_UART_Transmit(&huart3, (uint8_t *)data, strlen(data), 50);
 
-	PIDcalc(temperature_from_bmp280, temperature_from_user);
-	pwm_duty_float = (Pid1.upid * 299.0);
-	pwm_duty_int = Saturacja(pwm_duty_float);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 
-	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pwm_duty_int);
+
+
+
+
+
+
+
 
 	HAL_Delay(1000);
   }
@@ -241,7 +271,15 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if(is_int(&received_from_user))
+	{
+		temperature_from_user = atoi(&received_from_user)/10.0;
+	}
+	else
+	HAL_UART_Receive_IT(&huart3, &received_from_user, 3);
+}
 /* USER CODE END 4 */
 
 /**
