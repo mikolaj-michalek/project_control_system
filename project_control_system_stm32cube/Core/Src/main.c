@@ -73,8 +73,11 @@ int int_temp_to_send;
 char data[16];
 PidStruct Pid1 = {1.0,0,0,1.2,0.002,0,0,0,0,0,0,0,0,0};
 int pwm_duty;
-
+int temperature_from_uart;
 uint8_t received_from_user;
+uint32_t AdcValue_from_potentiometer;
+float max_range = 30.0;
+float min_range = 23.0;
 
 /* USER CODE END PV */
 
@@ -134,6 +137,14 @@ int is_int(char *str) {
     }
     return 1;
 }
+
+float ADC_to_temperature(uint32_t adc_val, float max_val, float min_val)
+{
+	float temp_val;
+	temp_val = adc_val * ((max_val-min_val)/4095.0) + min_val;
+
+	return temp_val;
+}
 /* USER CODE END 0 */
 
 /**
@@ -178,7 +189,8 @@ int main(void)
   BMP280_Init(&hspi1, BMP280_TEMPERATURE_16BIT, BMP280_STANDARD, BMP280_FORCEDMODE);
   HAL_TIM_PWM_Start (&htim1, TIM_CHANNEL_1);
   HAL_UART_Receive_IT(&huart3, &received_from_user, 3);
-
+  GPIO_PinState pin_state_user_button;
+  GPIO_PinState prev_pin_state_user_button = GPIO_PIN_RESET; //
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -190,6 +202,10 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	// ODCZYT DANYCH WEJSCIOWYCH
 	temperature_from_bmp280 = BMP280_ReadTemperature();
+	pin_state_user_button = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+	AdcValue_from_potentiometer = HAL_ADC_GetValue(&hadc1);
 
 	// SEKWENCJA PROGRAMU
 
@@ -197,6 +213,20 @@ int main(void)
 	PIDcalc(temperature_from_bmp280, temperature_from_user);
 	Saturacja();
 	pwm_duty = (int)(Pid1.usat * (999.0));
+
+		// Zmienna temperature_from_uart
+	if (pin_state_user_button == GPIO_PIN_SET && prev_pin_state_user_button == GPIO_PIN_RESET)
+	{
+		temperature_from_uart = !temperature_from_uart;
+	}
+	prev_pin_state_user_button = pin_state_user_button;
+
+		// Setpoint value from potentiometer
+	if (temperature_from_uart == 0)
+	{
+		temperature_from_user = ADC_to_temperature(AdcValue_from_potentiometer, max_range, min_range);
+	}
+
 
 
 
@@ -208,7 +238,15 @@ int main(void)
 
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 
-
+		// Led 1  - temperature_from_uart
+		if (temperature_from_uart == 1)
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+		}
+		else
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+		}
 
 
 
@@ -275,9 +313,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(is_int(&received_from_user))
 	{
-		temperature_from_user = atoi(&received_from_user)/10.0;
+		if (temperature_from_uart == 1)
+		    {
+				temperature_from_user = atoi(&received_from_user)/10.0;
+		    }
 	}
-	else
 	HAL_UART_Receive_IT(&huart3, &received_from_user, 3);
 }
 /* USER CODE END 4 */
