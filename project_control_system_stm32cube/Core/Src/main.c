@@ -71,12 +71,13 @@ typedef	struct{
 /* USER CODE BEGIN PV */
 float temperature_from_bmp280;
 float temperature_from_user;
-int int_temp_to_send;
+
 char data[16];
 PidStruct Pid1 = {1.0,0,0,1.2,0.02,0,0,0,0,0,0,0,0,0,0};
 int pwm_duty;
 int pwm_duty_fan;
 int temperature_from_uart;
+int int_temp_to_send;
 uint8_t received_from_user;
 uint32_t AdcValue_from_potentiometer;
 float max_range = 30.0;
