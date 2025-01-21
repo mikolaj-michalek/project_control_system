@@ -7,7 +7,7 @@ from datetime import datetime
 
 # Inicjalizacja portu szeregowego
 ser = serial.Serial('COM6', baudrate=115200, timeout=1)
-ser.write(b'255')
+ser.write(b'280')
 time.sleep(0.5)
 
 # Inicjalizacja danych
@@ -20,7 +20,7 @@ filename = f"temperature_data_{timestamp}.txt"
 # Funkcja do aktualizacji wykresu
 def update_plot():
     plt.plot(temperature_data, 'go', label='Odczyt' )
-    plt.axhline(y=25.5, color='r', linestyle='-', label='Wartość zadana')  # Pozioma linia
+    plt.axhline(y=28.0, color='r', linestyle='-', label='Wartość zadana')  # Pozioma linia
     plt.title('Wartość temperatury w czasie')
     plt.xlabel('Czas [s]')
     plt.ylabel('Temperatura [°C]')
